@@ -124,75 +124,112 @@ if st.sidebar.checkbox('Load Model'):
                     st.markdown("<h3>Detected objects in curret Frame</h3>", unsafe_allow_html=True)
                     st.dataframe(df_fq, use_container_width=True)
         
-    # Video
-    # if options == 'Video':
-    #     upload_video_file = st.sidebar.file_uploader(
-    #         'Upload Video', type=['mp4', 'avi', 'mkv'])
-    #     if upload_video_file is not None:
-    #         pred = st.checkbox(f'Predict Using {model_type}')
-    #         tfile = tempfile.NamedTemporaryFile(delete=False)
-    #         tfile.write(upload_video_file.read())
-    #         cap = cv2.VideoCapture(tfile.name)
-    #         # if pred:
-
-
-
-    def is_key_frame(prev_frame, curr_frame, threshold=300000):
-        diff = cv2.absdiff(prev_frame, curr_frame)
-        non_zero_count = np.count_nonzero(diff)
-        return non_zero_count > threshold
-
-    # 原有的代码
+    #Video
     if options == 'Video':
         upload_video_file = st.sidebar.file_uploader(
             'Upload Video', type=['mp4', 'avi', 'mkv'])
         if upload_video_file is not None:
             pred = st.checkbox(f'Predict Using {model_type}')
-            extract_key_frames = st.checkbox('Extract Key Frames')  # 新增的关键帧提取选项
-            key_frames = []  # 存储关键帧的列表
             tfile = tempfile.NamedTemporaryFile(delete=False)
             tfile.write(upload_video_file.read())
             cap = cv2.VideoCapture(tfile.name)
-        if (cap is not None) and pred:
-            stframe1 = st.empty()
-            stframe2 = st.empty()
-            stframe3 = st.empty()
-            prev_frame = None
-            frame_count = 0  # 帧计数器
-            process_every_n_frames = 10  # 每隔 n 帧处理一次
-            while True:
-                success, img = cap.read()
-                if not success:
-                    st.error(
-                        f"{options} NOT working\nCheck {options} properly!!",
-                        icon="🚨"
-                    )
+            # if pred:
+            if (cap is not None) and pred:
+                stframe1 = st.empty()
+                stframe2 = st.empty()
+                stframe3 = st.empty()
+                while True:
+                    success, img = cap.read()
+                    if not success:
+                        st.error(
+                            f"{options} NOT working\nCheck {options} properly!!",
+                            icon="🚨"
+                            )
                     break
-                frame_count += 1
-                if extract_key_frames:
-                    gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img is not None else None
-                    if prev_frame is not None and gray_frame is not None and is_key_frame(prev_frame, gray_frame):
-                        key_frames.append(img)
-                    prev_frame = gray_frame
-                if frame_count % process_every_n_frames == 0:
+                #st.image(img, channels="BGR", use_column_width=True)
+
                     img, current_no_class = get_yolo(img, model_type, model, confidence, color_pick_list, class_labels,
                                                      draw_thick)
                     FRAME_WINDOW.image(img, channels='BGR')
-
+                    if stop_button:
+                        capture_frame = img.copy()  # 复制当前帧以在停止后显示
+                        break
                 # 检查 current_no_class 是否存在
                     if current_no_class:
                         class_fq = dict(Counter(i for sub in current_no_class for i in set(sub)))
                         class_fq = json.dumps(class_fq, indent=4)
                         class_fq = json.loads(class_fq)
                         df_fq = pd.DataFrame(class_fq.items(), columns=['Class', 'Number'])
+                        if not df_fq.empty:
+                        # 计算FPS
+                            c_time = time.time()
+                           fps = 1 / (c_time - p_time)
+                            p_time = c_time
+                        else:
+                            st.error(
+                                f"No plates detected",
+                               icon="🚨"
+                            )
+                        get_system_stat(stframe1, stframe2, stframe3, fps, df_fq)
 
-                    # 计算FPS
-                    c_time = time.time()
-                    fps = 1 / (c_time - p_time)
-                    p_time = c_time
 
-                    # 更新推理结果
-                    get_system_stat(stframe1, stframe2, stframe3, fps, df_fq)
+
+    # def is_key_frame(prev_frame, curr_frame, threshold=300000):
+    #     diff = cv2.absdiff(prev_frame, curr_frame)
+    #     non_zero_count = np.count_nonzero(diff)
+    #     return non_zero_count > threshold
+
+    # # 原有的代码
+    # if options == 'Video':
+    #     upload_video_file = st.sidebar.file_uploader(
+    #         'Upload Video', type=['mp4', 'avi', 'mkv'])
+    #     if upload_video_file is not None:
+    #         pred = st.checkbox(f'Predict Using {model_type}')
+    #         extract_key_frames = st.checkbox('Extract Key Frames')  # 新增的关键帧提取选项
+    #         key_frames = []  # 存储关键帧的列表
+    #         tfile = tempfile.NamedTemporaryFile(delete=False)
+    #         tfile.write(upload_video_file.read())
+    #         cap = cv2.VideoCapture(tfile.name)
+    #     if (cap is not None) and pred:
+    #         stframe1 = st.empty()
+    #         stframe2 = st.empty()
+    #         stframe3 = st.empty()
+    #         prev_frame = None
+    #         frame_count = 0  # 帧计数器
+    #         process_every_n_frames = 10  # 每隔 n 帧处理一次
+    #         while True:
+    #             success, img = cap.read()
+    #             if not success:
+    #                 st.error(
+    #                     f"{options} NOT working\nCheck {options} properly!!",
+    #                     icon="🚨"
+    #                 )
+    #                 break
+    #             frame_count += 1
+    #             if extract_key_frames:
+    #                 gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img is not None else None
+    #                 if prev_frame is not None and gray_frame is not None and is_key_frame(prev_frame, gray_frame):
+    #                     key_frames.append(img)
+    #                 prev_frame = gray_frame
+    #             if frame_count % process_every_n_frames == 0:
+    #                 img, current_no_class = get_yolo(img, model_type, model, confidence, color_pick_list, class_labels,
+    #                                                  draw_thick)
+    #                 FRAME_WINDOW.image(img, channels='BGR')
+
+    #             # 检查 current_no_class 是否存在
+    #                 if current_no_class:
+    #                     class_fq = dict(Counter(i for sub in current_no_class for i in set(sub)))
+    #                     class_fq = json.dumps(class_fq, indent=4)
+    #                     class_fq = json.loads(class_fq)
+    #                     df_fq = pd.DataFrame(class_fq.items(), columns=['Class', 'Number'])
+
+    #                 # 计算FPS
+    #                 c_time = time.time()
+    #                 fps = 1 / (c_time - p_time)
+    #                 p_time = c_time
+
+    #                 # 更新推理结果
+    #                 get_system_stat(stframe1, stframe2, stframe3, fps, df_fq)
 
 
             # if extract_key_frames:
